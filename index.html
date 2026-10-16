@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0d0f17">
+<title>Тренировка · Фулбади</title>
+<style>
+  :root {
+    --bg: #0d0f17;
+    --bg-2: #131726;
+    --card: #1a1f33;
+    --card-2: #242b47;
+    --text: #f2f4fb;
+    --muted: #8d93ac;
+    --accent: #ff3d3d;
+    --accent-2: #ff9d00;
+    --green: #3dff9c;
+    --red: #ff2d55;
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background:
+      radial-gradient(1200px 500px at 80% -10%, rgba(255,61,61,.12), transparent 60%),
+      radial-gradient(900px 400px at 0% 0%, rgba(255,157,0,.10), transparent 55%),
+      linear-gradient(180deg, var(--bg), var(--bg-2));
+    background-attachment: fixed;
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    padding-bottom: 120px;
+    overscroll-behavior-y: contain;
+  }
+  .container { max-width: 520px; margin: 0 auto; padding: 16px; }
+  .header { padding: 8px 4px 16px; text-align: center; position: relative; }
+  .header::before {
+    content: "";
+    position: absolute; left: 50%; top: -8px; transform: translateX(-50%);
+    width: 140px; height: 4px; border-radius: 2px;
+    background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  }
+  .header h1 {
+    margin: 0; font-size: 28px; font-weight: 900; letter-spacing: 2px;
+    text-transform: uppercase;
+    background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .header p { margin: 6px 0 0; color: var(--muted); font-size: 14px; letter-spacing: 1px; text-transform: uppercase; }
+  .newday-btn { margin-top: 14px; font-size: 13px; letter-spacing: .5px; padding: 10px 20px; background: var(--card-2); color: var(--text); border: 1px solid rgba(255,255,255,.08); }
+  .newday-btn:active { background: var(--accent); }
+
+  .history { margin-top: 24px; }
+  .history-head { display: flex; align-items: center; justify-content: space-between; padding: 4px 4px 12px; }
+  .history-head h2 { margin: 0; font-size: 17px; letter-spacing: 1px; text-transform: uppercase; }
+  .history-head h2::before { content: "🔥 "; }
+  .btn.small { padding: 8px 12px; font-size: 12px; background: rgba(255,45,85,.15); }
+  .hist-day {
+    background: linear-gradient(180deg, var(--card), var(--card-2));
+    border-radius: var(--radius);
+    padding: 12px 14px; margin-bottom: 10px;
+    border: 1px solid rgba(255,255,255,.07);
+    box-shadow: 0 4px 14px rgba(0,0,0,.2);
+    display: flex; align-items: center; gap: 12px;
+  }
+  .hist-day .date { font-weight: 700; font-size: 14px; flex: 1; letter-spacing: .3px; }
+  .hist-day .bar-wrap { flex: 1; height: 8px; background: rgba(0,0,0,.3); border-radius: 6px; overflow: hidden; }
+  .hist-day .bar { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-2), var(--green)); border-radius: 6px; }
+  .hist-day .count { font-size: 13px; font-weight: 800; color: var(--green); white-space: nowrap; }
+  .hist-day.empty .count { color: var(--muted); }
+  .hist-day.rest-day { opacity: .4; }
+  .hist-day.rest-day .bar-wrap { background: rgba(255,255,255,.04); }
+  .hist-day.rest-day .bar { background: var(--muted); }
+  .hist-day.train-day { border-color: rgba(255,61,61,.25); }
+  .hist-day.train-day .date::before { content: "🏋️ "; }
+  .hist-day.rest-day .date::before { content: "🌙 "; }
+
+  /* ===== Timer (sticky top) ===== */
+  .timer-wrap {
+    position: sticky; top: 0; z-index: 50;
+    background: rgba(13,15,23,.92);
+    backdrop-filter: blur(10px);
+    padding: 12px 0 10px;
+  }
+  .timer-card {
+    background: linear-gradient(135deg, #1a1f33, #2a2138);
+    border: 1px solid rgba(255,61,61,.35);
+    border-radius: var(--radius);
+    padding: 18px;
+    box-shadow: 0 10px 40px rgba(255,61,61,.18), inset 0 1px 0 rgba(255,255,255,.06);
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .timer-card::after {
+    content: "REST";
+    position: absolute; right: -18px; top: 50%; transform: translateY(-50%) rotate(90deg);
+    font-size: 46px; font-weight: 900; letter-spacing: 6px;
+    color: rgba(255,255,255,.04); pointer-events: none;
+  }
+  .timer-card.running { animation: pulse 1s infinite; }
+  @keyframes pulse {
+    0%,100% { box-shadow: 0 10px 40px rgba(255,61,61,.18), inset 0 1px 0 rgba(255,255,255,.06);}
+    50% { box-shadow: 0 10px 50px rgba(255,157,0,.35), inset 0 1px 0 rgba(255,255,255,.06);}
+  }
+  .timer-display {
+    font-size: 68px; font-weight: 900; font-variant-numeric: tabular-nums;
+    line-height: 1; letter-spacing: 2px;
+    background: linear-gradient(90deg, #ff5d5d, #ffd14d);
+    -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .timer-display.done { color: var(--green); -webkit-text-fill-color: var(--green); }
+  .timer-label { font-size: 12px; letter-spacing: 2px; text-transform: uppercase; opacity: .8; margin-top: 6px; }
+  .timer-controls { display: flex; gap: 10px; margin-top: 14px; justify-content: center; flex-wrap: wrap; }
+  .btn {
+    border: none; border-radius: 10px; padding: 12px 18px;
+    font-size: 14px; font-weight: 700; cursor: pointer; letter-spacing: .5px;
+    background: rgba(255,255,255,.08); color: #fff;
+    border: 1px solid rgba(255,255,255,.12);
+    transition: transform .05s, background .15s;
+  }
+  .btn:active { transform: scale(.96); }
+  .btn.primary { background: linear-gradient(90deg, var(--accent), var(--accent-2)); color: #fff; border: none; }
+  .btn.danger { background: rgba(255,45,85,.2); border-color: rgba(255,45,85,.4); }
+  .duration-row { display: flex; gap: 8px; justify-content: center; margin-top: 12px; flex-wrap: wrap; }
+  .dur-chip {
+    border: 1px solid rgba(255,255,255,.2); background: transparent; color: #fff;
+    border-radius: 20px; padding: 7px 14px; font-size: 13px; font-weight: 700; cursor: pointer;
+  }
+  .dur-chip.active { background: linear-gradient(90deg, var(--accent), var(--accent-2)); color: #fff; border-color: transparent; }
+
+  /* ===== Exercises ===== */
+  .exercise {
+    background: linear-gradient(180deg, var(--card), var(--card-2));
+    border-radius: var(--radius);
+    padding: 14px; margin-bottom: 12px;
+    border: 1px solid rgba(255,255,255,.07);
+    box-shadow: 0 6px 20px rgba(0,0,0,.25);
+    position: relative;
+  }
+  .exercise::before {
+    content: ""; position: absolute; left: 0; top: 14px; bottom: 14px; width: 3px;
+    border-radius: 2px; background: var(--accent);
+    opacity: .7;
+  }
+  .exercise.done { opacity: .5; }
+  .exercise.done::before { background: var(--green); }
+  .ex-head { display: flex; align-items: center; gap: 10px; }
+  .ex-idx {
+    width: 32px; height: 32px; flex-shrink: 0; border-radius: 9px;
+    display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    font-weight: 900; font-size: 15px; color: #fff;
+    box-shadow: 0 4px 12px rgba(255,61,61,.3);
+  }
+  .ex-title { flex: 1; }
+  .ex-title h3 { margin: 0; font-size: 16px; font-weight: 800; letter-spacing: .3px; }
+  .ex-meta { color: var(--muted); font-size: 12.5px; margin-top: 2px; }
+  .ex-meta .tag {
+    display: inline-block; background: rgba(255,255,255,.06); padding: 2px 8px;
+    border-radius: 6px; margin-right: 6px; font-size: 11px; letter-spacing: .5px;
+    border: 1px solid rgba(255,255,255,.08);
+  }
+  .superset-badge {
+    background: linear-gradient(135deg, var(--accent-2), #ff2d55); color: #fff;
+    padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 800;
+    margin-left: 6px; letter-spacing: .5px; text-transform: uppercase;
+    box-shadow: 0 3px 8px rgba(255,157,0,.3);
+  }
+  .sets { margin-top: 12px; display: grid; grid-template-columns: repeat(auto-fit, minmax(56px,1fr)); gap: 8px; }
+  .set {
+    background: rgba(0,0,0,.25); border-radius: 12px; padding: 10px 6px;
+    text-align: center; cursor: pointer; border: 2px solid rgba(255,255,255,.06);
+    transition: border-color .15s, background .15s, transform .05s;
+    user-select: none;
+  }
+  .set:active { transform: scale(.95); }
+  .set.done {
+    border-color: var(--green);
+    background: rgba(61,255,156,.1);
+    box-shadow: 0 0 14px rgba(61,255,156,.15);
+  }
+  .set .set-num { font-size: 11px; color: var(--muted); letter-spacing: .5px; text-transform: uppercase; }
+  .set .set-w { font-size: 15px; font-weight: 800; margin-top: 3px; }
+  .set.done .set-w { color: var(--green); }
+
+  .footer-note {
+    text-align: center; color: var(--muted); font-size: 12px; padding: 20px 10px;
+    letter-spacing: .5px; line-height: 1.7;
+  }
+  .footer-note strong { color: var(--accent); }
+
+  /* ===== Toast ===== */
+  .toast {
+    position: fixed; left: 50%; bottom: 90px; transform: translateX(-50%) translateY(20px);
+    background: #fff; color: #3a3f66; padding: 12px 20px; border-radius: 12px;
+    font-weight: 600; font-size: 15px; opacity: 0; pointer-events: none;
+    transition: opacity .25s, transform .25s; z-index: 100;
+    box-shadow: 0 8px 30px rgba(0,0,0,.4);
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="header">
+    <h1>🏋️ Тренировка · Фулбади</h1>
+    <p>Рельеф · 3×в неделю · отдых 60 сек</p>
+    <button class="btn primary newday-btn" id="btnNewDay">🔄 Новый день</button>
+  </div>
+
+  <!-- Timer -->
+  <div class="timer-wrap">
+    <div class="timer-card" id="timerCard">
+      <div class="timer-display" id="timerDisplay">1:00</div>
+      <div class="timer-label" id="timerLabel">Отдых · нажмите подход для запуска</div>
+      <div class="timer-controls">
+        <button class="btn" id="btnPause">⏸ Пауза</button>
+        <button class="btn danger" id="btnReset">↺ Сброс</button>
+      </div>
+      <div class="duration-row" id="durationRow">
+        <button class="dur-chip" data-dur="45">45с</button>
+        <button class="dur-chip active" data-dur="60">60с</button>
+        <button class="dur-chip" data-dur="90">90с</button>
+        <button class="dur-chip" data-dur="120">2 мин</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Exercises injected by JS -->
+  <div id="exercises"></div>
+
+  <!-- History -->
+  <div class="history">
+    <div class="history-head">
+      <h2>📅 История за 7 дней</h2>
+      <button class="btn danger small" id="btnClearHistory">Очистить</button>
+    </div>
+    <div id="historyList"></div>
+  </div>
+
+  <div class="footer-note">
+    Тяги перед жимами · база в начале.<br><strong>Жир — решает питание, не вес</strong> 😉
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ====== Данные программы ======
+const EXERCISES = [
+  { id: 0, name: "Жим ногами", meta: "Ноги · база", weights: ["80", "100", "100", "120"], reps: 12 },
+  { id: 1, name: "Горизонтальная тяга", meta: "Спина", weights: ["61", "61", "61", "61"], reps: 12 },
+  { id: 2, name: "Верхняя тяга", meta: "Спина", weights: ["61", "61", "61"], reps: 12 },
+  { id: 3, name: "Жим лёжа / тренажёр", meta: "Грудь", weights: ["54", "74", "84", "94"], reps: 12 },
+  { id: 4, name: "Гиперэкстензия", meta: "Ноги · задняя пов.", weights: ["20", "20", "20"], reps: 12 },
+  { id: 5, name: "Тяга вниз (трицепс)", meta: "Трицепс", weights: ["29", "29", "29"], reps: 12, superset: true },
+  { id: 6, name: "Молоты (бицепс)", meta: "Бицепс", weights: ["14", "14", "14"], reps: 12, superset: true },
+  { id: 7, name: "Разводка в стороны", meta: "Дельты", weights: ["12", "12", "12"], reps: 12 },
+  { id: 8, name: "Скручивания", meta: "Пресс", weights: ["с/в", "с/в", "с/в", "с/в"], reps: 12 },
+];
+
+// ====== Состояние ======
+const STORE_KEY = "fullbody_workout_v1";
+let state = { done: {}, dur: 60, history: {} };
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STORE_KEY);
+    if (raw) state = Object.assign(state, JSON.parse(raw));
+  } catch(e) {}
+}
+function saveState() {
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch(e) {}
+}
+
+// ====== Таймер ======
+let timer = null;
+let remaining = 60;
+let isPaused = false;
+
+function fmt(s) {
+  const m = Math.floor(s / 60);
+  const sec = s % 60;
+  return m + ":" + String(sec).padStart(2, "0");
+}
+function updateDisplay() {
+  const el = document.getElementById("timerDisplay");
+  el.textContent = fmt(remaining);
+  el.classList.toggle("done", remaining === 0);
+}
+function setDuration(sec) {
+  stopTimer();
+  state.dur = sec;
+  remaining = sec;
+  updateDisplay();
+  document.getElementById("timerLabel").textContent = "Отдых · нажмите подход для запуска";
+  document.querySelectorAll(".dur-chip").forEach(c =>
+    c.classList.toggle("active", parseInt(c.dataset.dur) === sec)
+  );
+  saveState();
+}
+function startTimer(sec) {
+  stopTimer();
+  remaining = sec;
+  isPaused = false;
+  document.getElementById("timerLabel").textContent = "Отдых идёт…";
+  document.getElementById("timerCard").classList.add("running");
+  updateDisplay();
+  timer = setInterval(() => {
+    if (isPaused) return;
+    remaining--;
+    updateDisplay();
+    if (remaining <= 0) {
+      finishTimer();
+    }
+  }, 1000);
+}
+function stopTimer() {
+  clearInterval(timer);
+  timer = null;
+  document.getElementById("timerCard").classList.remove("running");
+}
+function finishTimer() {
+  stopTimer();
+  updateDisplay();
+  document.getElementById("timerLabel").textContent = "✅ Отдых окончен!";
+  beep();
+  try { navigator.vibrate && navigator.vibrate([200,100,200,100,200]); } catch(e) {}
+  notify("Отдых окончен!");
+  showToast("Отдых окончен!");
+}
+
+// ====== Локальные уведомления (Notification API) ======
+let notifyAllowed = false;
+function requestNotifyPermission() {
+  if (!("Notification" in window)) return;
+  if (Notification.permission === "granted") { notifyAllowed = true; return; }
+  if (Notification.permission === "default") {
+    Notification.requestPermission().then(p => {
+      notifyAllowed = p === "granted";
+      if (notifyAllowed) showToast("Уведомления включены ✅");
+    }).catch(() => {});
+  }
+}
+function notify(msg) {
+  if (!notifyAllowed) return;
+  try {
+    if (document.visibilityState === "visible") return; // и так на экране
+    new Notification("🏋️ Тренировка", { body: msg, tag: "rest-timer" });
+  } catch(e) {}
+}
+function togglePause() {
+  if (!timer) return;
+  isPaused = !isPaused;
+  document.getElementById("timerLabel").textContent =
+    isPaused ? "⏸ Пауза" : "Отдых идёт…";
+}
+function resetTimer() {
+  stopTimer();
+  remaining = state.dur;
+  isPaused = false;
+  document.getElementById("timerLabel").textContent = "Отдых · нажмите подход для запуска";
+  updateDisplay();
+}
+
+// ====== Звук (WebAudio, без файла) ======
+let audioCtx = null;
+function beep() {
+  try {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const ctx = audioCtx;
+    if (ctx.state === "suspended") ctx.resume();
+    [0, 0.2, 0.4].forEach((t, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.value = i === 2 ? 880 : 660;
+      gain.gain.setValueAtTime(0.0001, ctx.currentTime + t);
+      gain.gain.exponentialRampToValueAtTime(0.3, ctx.currentTime + t + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + t + 0.3);
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.start(ctx.currentTime + t); osc.stop(ctx.currentTime + t + 0.35);
+    });
+  } catch(e) {}
+}
+
+// ====== Toast ======
+let toastTimer = null;
+function showToast(msg) {
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove("show"), 1800);
+}
+
+// ====== Рендер упражнений ======
+function render() {
+  const wrap = document.getElementById("exercises");
+  wrap.innerHTML = "";
+  EXERCISES.forEach(ex => {
+    const card = document.createElement("div");
+    card.className = "exercise" + (ex.done ? " done" : "");
+    const allSets = ex.weights.length;
+    const doneSets = ex.weights.filter((_, i) => state.done[ex.id + "-" + i]).length;
+    if (doneSets === allSets) card.classList.add("done");
+
+    let head = `
+      <div class="ex-head">
+        <div class="ex-idx">${ex.id + 1}</div>
+        <div class="ex-title">
+          <h3>${ex.name}${ex.superset ? '<span class="superset-badge">суперсет</span>' : ""}</h3>
+          <div class="ex-meta"><span class="tag">${ex.meta}</span>${ex.reps} повт · ${doneSets}/${allSets}</div>
+        </div>
+      </div>`;
+    let sets = '<div class="sets">';
+    ex.weights.forEach((w, i) => {
+      const key = ex.id + "-" + i;
+      const isDone = !!state.done[key];
+      sets += `
+        <div class="set ${isDone ? "done" : ""}" data-ex="${ex.id}" data-set="${i}">
+          <div class="set-num">Подход ${i + 1}</div>
+          <div class="set-w">${isDone ? "✓" : w + " кг"}</div>
+        </div>`;
+    });
+    sets += '</div>';
+    card.innerHTML = head + sets;
+    wrap.appendChild(card);
+  });
+}
+
+// ====== События ======
+document.getElementById("exercises").addEventListener("click", e => {
+  const setEl = e.target.closest(".set");
+  if (!setEl) return;
+  const exId = +setEl.dataset.ex;
+  const setIdx = +setEl.dataset.set;
+  const key = exId + "-" + setIdx;
+
+  // toggle отметки
+  state.done[key] = !state.done[key];
+  saveState();
+  render();
+
+  // запросить разрешение на уведомления при первом взаимодействии
+  requestNotifyPermission();
+
+  // запустить таймер на выбранную длительность
+  startTimer(state.dur);
+});
+
+document.getElementById("durationRow").addEventListener("click", e => {
+  const chip = e.target.closest(".dur-chip");
+  if (chip) setDuration(parseInt(chip.dataset.dur));
+});
+document.getElementById("btnPause").addEventListener("click", togglePause);
+document.getElementById("btnReset").addEventListener("click", resetTimer);
+
+// ====== История ======
+const TOTAL_SETS = EXERCISES.reduce((s, e) => s + e.weights.length, 0);
+const WEEKDAYS = ["Вс", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб"];
+const MONTHS = ["янв", "фев", "мар", "апр", "мая", "июн", "июл", "авг", "сен", "окт", "ноя", "дек"];
+
+function dayKey(d) {
+  return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+}
+function countDone(obj) {
+  return Object.keys(obj).filter(k => obj[k]).length;
+}
+function newDay() {
+  // сохранить текущий прогресс в историю за сегодня, затем сбросить
+  const today = dayKey(new Date());
+  const doneToday = countDone(state.done);
+  if (doneToday > 0) {
+    state.history[today] = Object.assign({}, state.done);
+  }
+  state.done = {};
+  saveState();
+  render();
+  renderHistory();
+  showToast(doneToday > 0 ? "День сохранён, начали заново" : "Новый день");
+}
+function clearHistory() {
+  if (!confirm("Удалить всю историю за 7 дней?")) return;
+  state.history = {};
+  saveState();
+  renderHistory();
+  showToast("История очищена");
+}
+function renderHistory() {
+  const list = document.getElementById("historyList");
+  const days = [];
+  const now = new Date();
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(now);
+    d.setDate(now.getDate() - i);
+    days.push(d);
+  }
+  list.innerHTML = "";
+  days.forEach(d => {
+    const key = dayKey(d);
+    const isToday = key === dayKey(now);
+    const sets = countDone(state.history[key] || {});
+    const pct = Math.round((sets / TOTAL_SETS) * 100);
+    const label = isToday ? "Сегодня" : (WEEKDAYS[d.getDay()] + " " + d.getDate() + " " + MONTHS[d.getMonth()]);
+    // тренировочные дни: Пн(1), Ср(3), Пт(5)
+    const isTrain = [1, 3, 5].includes(d.getDay());
+    const el = document.createElement("div");
+    el.className = "hist-day" + (sets === 0 ? " empty" : "") + (isTrain ? " train-day" : " rest-day");
+    el.innerHTML = `
+      <div class="date">${label}</div>
+      <div class="bar-wrap"><div class="bar" style="width:${pct}%"></div></div>
+      <div class="count">${sets}/${TOTAL_SETS}</div>`;
+    list.appendChild(el);
+  });
+}
+document.getElementById("btnNewDay").addEventListener("click", newDay);
+document.getElementById("btnClearHistory").addEventListener("click", clearHistory);
+
+// ====== Инициализация ======
+loadState();
+setDuration(state.dur);
+render();
+renderHistory();
+</script>
+</body>
+</html>
